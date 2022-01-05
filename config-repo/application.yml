@@ -1,0 +1,116 @@
+server:
+  port: 2002
+  servlet:
+    context-path: /gateway
+spring:
+  application:
+    name: gateway
+  cloud:
+    gateway:
+#      discovery: #自动发现路由 RewritePath
+#        locator:
+#          enabled: true
+#          lower-case-service-id: true
+#          predicates:
+##          - Path=/gateway/{segment}
+#          - name: Path
+#            args:
+#              patterns: "'/gateway/'+serviceId+'/**'"
+#          filters:
+#          - RewritePath=/gateway/?(?<segment>.*), /$\{segment}
+#          - SetPath=/{segment}
+#          - name: RewritePath
+#            args:
+#              regexp: "'/gateway/' + serviceId + '/(?<remaining>.*)'"
+#              replacement: "'/${remaining}'"
+      routes:
+      - id: path-emplayee
+        uri: lb://EMPLOYEE
+        predicates: #RoutePredicateFactory
+        - Path=/gateway/employee/**
+#        - Host=*.retry.com
+        filters: #GatewayFilter
+        - RewritePath=/gateway/?(?<segment>.*), /$\{segment}
+        - AddRequestParameter=red, blue
+        - AddRequestHeader=X-Request-red, blue
+#        - RequestRateLimiter=1, 2, '#{@pathKeyResolver}'
+#        - RewriteLocationResponseHeader=AS_IN_REQUEST, Location, ,
+        - RewriteResponseHeader=X-Response-Red, , password=[^&]+, password=***
+        - SaveSession
+#        - SetStatus=401
+        - RequestSize=4MB
+        - SetRequestHostHeader=hill.org
+        - name: RequestRateLimiter
+          args:
+            redis-rate-limiter.replenishRate: 1
+            redis-rate-limiter.burstCapacity: 2
+            redis-rate-limiter.requestedTokens: 1
+            key-resolver: "#{@pathKeyResolver}"
+        - name: Retry
+          args:
+            retries: 3 #The number of retries that should be attempted.
+            statuses: #org.springframework.http.HttpStatus
+              - BAD_GATEWAY
+              - INTERNAL_SERVER_ERROR
+#              - OK #BAD_GATEWAY #The HTTP status codes that should be retried, represented by using org.springframework.http.HttpStatus.
+            methods:  #The HTTP methods that should be retried, represented by using org.springframework.http.HttpMethod.
+              - GET
+              - POST
+            series:  #,CLIENT_ERROR #The series of status codes to be retried, represented by using org.springframework.http.HttpStatus.Series.
+              - SERVER_ERROR
+              - CLIENT_ERROR
+            exceptions:
+              - java.io.IOException
+              - org.springframework.cloud.gateway.support.TimeoutException #A list of thrown exceptions that should be retried.
+            backoff:
+              firstBackoff: 10ms
+              maxBackoff: 50ms
+              factor: 2
+              basedOnPreviousValue: false
+      - id: ss
+#        uri: https://www.baidu.com #http://172.16.75.43:2334/zuul/bondex-victop-trucking-client-hil/bondex-victop-trucking-client/resend/send?bondexcarorders=TS
+        uri: https://www.baidu.com
+        predicates:
+          - After=2021-10-01T01:01:01+08:00[Asia/Shanghai]
+          - Path=/gateway/** #匹配的路径
+        filters: #GatewayFilter
+          - RewritePath=/gateway/?(?<segment>.*), /$\{segment}
+#          - StripPrefix=1
+#          - AddRequestHeader=X-Request-red, blue
+      metrics:
+        enabled: true
+      httpclient:
+        connect-timeout: 1000 #全局配置
+        response-timeout: 5s
+        wiretap: true
+      httpserver:
+        wiretap: true
+
+  redis:
+    port: 6379
+    password:
+    host: 127.0.0.1
+    database: 3
+    lettuce:
+      pool:
+        min-idle: 10
+        max-wait: 20000
+        max-active: 100
+        max-idle: 20
+
+eureka:
+  instance:
+    lease-expiration-duration-in-seconds: 10
+    lease-renewal-interval-in-seconds: 2
+    prefer-ip-address: true
+  client:
+    service-url:
+      defaultZone: http://eureka1014:1014/eureka/eureka,http://eureka1016:1016/eureka/eureka,http://eureka1015:1015/eureka/eureka
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway.requests,gateway
+  metrics:
+    tags:
+      application: ${spring.application.name}
