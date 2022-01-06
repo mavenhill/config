@@ -73,7 +73,7 @@ spring:
 #        uri: https://www.baidu.com #http://172.16.75.43:2334/zuul/bondex-victop-trucking-client-hil/bondex-victop-trucking-client/resend/send?bondexcarorders=TS
         uri: https://www.baidu.com
         predicates:
-          - After=2022-10-01T01:01:01+08:00[Asia/Shanghai]
+          - After=2021-10-01T01:01:01+08:00[Asia/Shanghai]
           - Path=/gateway/** #匹配的路径
         filters: #GatewayFilter
           - RewritePath=/gateway/?(?<segment>.*), /$\{segment}
